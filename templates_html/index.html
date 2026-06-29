@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>RAG Chat App</title>
+</head>
+<body>
+    <h1>RAG Chat</h1>
+
+    <input type="file" id="fileInput" accept=".txt,.pdf"/>
+    <button id="upload" onclick="uploadFile()">Upload</button>
+    <p id="fileLabel"></p>
+    <p id="uploadStatus"></p>
+     
+    <div id="chatbox"></div>
+
+    <input id="question" type="text" placeholder="Ask something..." />
+    <button onclick="sendMessage()">Send</button>
+    <button onclick="deleteChat()">Delete Chat</button>
+
+    <p id="response"></p>
+
+    <script>
+        async function sendMessage() {
+            const question = document.getElementById("question").value;
+            const chatbox = document.getElementById("chatbox");
+            let session_id = localStorage.getItem("session_id");
+
+            if (!session_id) {
+                session_id = crypto.randomUUID();
+                localStorage.setItem("session_id", session_id);
+            }
+
+            chatbox.innerHTML += `<p><b>You:</b> ${question}</p>`;
+
+            try {
+                const res = await fetch("/chat", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ question: question,
+                                            session_id: session_id })
+                });
+
+                const data = await res.json();
+                chatbox.innerHTML += `<p><b>Bot:</b> ${data.answer}</p>`;
+            } catch (err) {
+                chatbox.innerHTML += `<p><b>Error:</b> Failed to get response</p>`;
+            }
+            
+        }
+        
+        async function uploadFile() {
+            const fileInput = document.getElementById("fileInput");
+            const status = document.getElementById("uploadStatus");
+
+            try {
+                let session_id = localStorage.getItem("session_id");
+
+                if (!session_id) {
+                    session_id = crypto.randomUUID();
+                    localStorage.setItem("session_id", session_id);
+                    console.log("session_id created", session_id);
+                }
+
+                console.log("session_id", session_id);
+
+                const file = fileInput.files[0];
+                if (!file) {
+                    status.innerText = "Please select a file.";
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append("file", file);
+                formData.append("session_id", session_id);
+
+                const res = await fetch("/upload", {
+                    method: "POST",
+                    body: formData
+                });
+
+                if (!res.ok) {
+                    throw new Error(`Upload failed: ${res.status}`);
+                }
+
+                const data = await res.json();
+
+                document.getElementById("fileInput").value = "";
+                document.getElementById("fileLabel").textContent =
+                    "Uploaded: " + file.name;
+
+                status.innerText = data.message || "Upload successful";
+
+            } catch (error) {
+                console.error("Upload error:", error);
+
+                status.innerText = "Upload failed. Please try again.";
+            }
+        }
+
+        async function deleteChat() {
+            const chatbox = document.getElementById("chatbox");
+            const fileLabel = document.getElementById("fileLabel");
+            const status = document.getElementById("uploadStatus");
+
+            try {
+                let session_id = localStorage.getItem("session_id");
+
+                console.log("session_id: ", session_id);
+
+                if (!session_id) {
+                    console.log("No session id error");
+                    status.textContent = "No active session.";
+                    return;
+                }
+
+                const res = await fetch("/delete_chat", {
+                            method: "POST",
+                            body: new URLSearchParams({ session_id })
+                });
+
+                if (!res.ok) {
+                    throw new Error(`Delete failed: ${res.status}`);
+                }
+
+                  
+                chatbox.innerHTML = "";
+                fileLabel.textContent = "";
+                status.textContent = "Chat deleted successfully.";
+
+            } catch (error) {
+                console.error("Delete error:", error);
+                status.textContent = "Failed to delete chat. Please try again.";
+            }
+        }
+
+
+        window.addEventListener("load", async () => {
+            const fileLabel = document.getElementById("fileLabel");
+            const status = document.getElementById("uploadStatus");
+
+            try {
+                const session_id = localStorage.getItem("session_id");
+
+                if (!session_id) {
+                    console.log("No session found");
+                    return;
+                }
+
+                console.log("session_id:", session_id);
+
+                const chatRes = await fetch(`/chat_history?session_id=${encodeURIComponent(session_id)}`);
+
+                if (!chatRes.ok) {
+                    throw new Error(`Chat history failed: ${chatRes.status}`);
+                }
+
+                const chatData = await chatRes.json();
+
+                if (chatData?.messages) {
+                    renderChat(chatData.messages);
+                } else {
+                    console.warn("No messages found in response");
+                }
+
+                const docRes = await fetch(`/document?session_id=${encodeURIComponent(session_id)}`);
+
+                if (!docRes.ok) {
+                    throw new Error(`Document fetch failed: ${docRes.status}`);
+                }
+
+                const fileData = await docRes.json();
+
+                if (fileData?.filename) {
+                    console.log("fileData.filename:", fileData.filename);
+
+                    fileLabel.textContent = `Uploaded: ${fileData.filename}`;
+                    status.textContent = fileData.message || "File loaded";
+                }
+
+            } catch (error) {
+                console.error("Initialization error:", error);
+
+                if (status) {
+                    status.textContent = "Failed to load previous session.";
+                }
+            }
+        });
+
+        function renderChat(messages) {
+            const chatBox = document.getElementById("chatbox");
+
+            chatBox.innerHTML = "";
+
+            messages.forEach(msg => {
+                if (msg.role === "user") {
+                      chatBox.innerHTML += `<p><b>You:</b> ${msg.content}</p>`;
+                } else {
+                    chatBox.innerHTML += `<p><b>Bot:</b> ${msg.content}</p>`;
+                }
+            });
+        }
+    </script>
+</body>
+</html>
