@@ -1,6 +1,7 @@
 from .database import get_connection
 import logging
 from typing import Optional
+import threading
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +23,6 @@ def save_document(session_id: str, filename: str) -> None:
         filename,
     )
 
-    
     if not session_id or not isinstance(session_id, str):
         raise ValueError("Invalid session_id provided")
 

@@ -18,6 +18,7 @@ FAISS_DIR = "faiss_indexes"
 logger = logging.getLogger(__name__)
 db_lock = Lock()
 
+
 class DatabaseDeletionError(Exception):
     """Custom exception for database deletion failures."""
     pass
@@ -216,7 +217,6 @@ def create_db_from_file(file_path: str, session_id: str) -> None:
     """
     logger.debug("[create_db_from_file] Start for session: %s", session_id)
 
-  
     if not file_path or not isinstance(file_path, str):
         raise ValueError("Invalid file_path provided")
 
@@ -309,7 +309,6 @@ def ask_rag(question: str, session_id: str) -> dict:
         RuntimeError: If LLM or retrieval fails.
     """
     logger.debug("[ask_rag] Received question for session: %s", session_id)
-
   
     if not isinstance(question, str):
         raise ValueError("Question must be a string")

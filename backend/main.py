@@ -91,8 +91,7 @@ async def chat(req: ChatRequest) -> dict:
         req.session_id,
         len(req.question) if req.question else 0,
     )
-
-  
+   
     if not req.question or not isinstance(req.question, str):
         raise HTTPException(
             status_code=400,
@@ -164,7 +163,7 @@ async def upload(
         session_id,
         file.filename,
     )
-
+ 
     if not session_id or not isinstance(session_id, str):
         raise HTTPException(status_code=400, detail="Invalid session_id")
 
