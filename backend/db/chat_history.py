@@ -3,6 +3,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 def save_message(session_id: str, role: str, content: str) -> None:
     """
     Saves a chat message to the database.
@@ -36,7 +37,7 @@ def save_message(session_id: str, role: str, content: str) -> None:
             "[save_message] Skipping empty message for session: %s",
             session_id,
         )
-        return 
+        return
 
     conn = None
 
@@ -61,23 +62,21 @@ def save_message(session_id: str, role: str, content: str) -> None:
 
     except Exception as e:
         if conn:
-            conn.rollback()  
+            conn.rollback()
 
         logger.exception(
             "[save_message] Failed to save message | session: %s",
             session_id,
         )
 
-        raise RuntimeError(
-            f"Failed to save message for session {session_id}"
-        ) from e
+        raise RuntimeError(f"Failed to save message for session {session_id}") from e
 
     finally:
         if conn:
-            conn.close()  
+            conn.close()
 
 
-def get_chat_history(session_id: str, limit: int = 10) -> list[dict]:
+def get_chat_history(session_id: str, limit: int = 30) -> list[dict]:
     """
     Retrieves chat history for a given session.
 
@@ -147,8 +146,7 @@ def get_chat_history(session_id: str, limit: int = 10) -> list[dict]:
 
     finally:
         if conn:
-            conn.close()  
-
+            conn.close()
 
 
 def clear_chat(session_id: str) -> None:
@@ -202,17 +200,15 @@ def clear_chat(session_id: str) -> None:
 
     except Exception as e:
         if conn:
-            conn.rollback()  
+            conn.rollback()
 
         logger.exception(
             "[clear_chat] Failed to clear chat | session: %s",
             session_id,
         )
 
-        raise RuntimeError(
-            f"Failed to clear chat for session {session_id}"
-        ) from e
+        raise RuntimeError(f"Failed to clear chat for session {session_id}") from e
 
     finally:
         if conn:
-            conn.close() 
+            conn.close()

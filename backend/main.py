@@ -15,13 +15,20 @@ import logging
 from dotenv import load_dotenv
 from fastapi.concurrency import run_in_threadpool
 from pathlib import Path
+from fastapi.middleware.cors import CORSMiddleware
 
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+
 class ChatRequest(BaseModel):
     question: str
     session_id: str
+
+
+class DeleteRequest(BaseModel):
+    session_id: str
+
 
 load_dotenv()
 setup_logging()
@@ -29,7 +36,15 @@ logger = logging.getLogger(__name__)
 logger.info("Application started")
 
 app = FastAPI()
-templates = Jinja2Templates(directory="templates_html")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 init_db()
 
 
@@ -70,8 +85,8 @@ def home(request: Request) -> HTMLResponse:
             status_code=500,
             detail="Internal server error while loading home page",
         ) from e
-    
- 
+
+
 @app.post("/chat")
 async def chat(req: ChatRequest) -> dict:
     """
@@ -91,7 +106,7 @@ async def chat(req: ChatRequest) -> dict:
         req.session_id,
         len(req.question) if req.question else 0,
     )
-   
+
     if not req.question or not isinstance(req.question, str):
         raise HTTPException(
             status_code=400,
@@ -136,14 +151,13 @@ async def chat(req: ChatRequest) -> dict:
             status_code=500,
             detail="Internal server error",
         ) from e
-    
+
+
 ALLOWED_EXTENSIONS = {".txt", ".pdf"}
 
+
 @app.post("/upload")
-async def upload(
-    file: UploadFile = File(...),
-    session_id: str = Form(...)
-) -> dict:
+async def upload(file: UploadFile = File(...), session_id: str = Form(...)) -> dict:
     """
     Upload a document, process it, and store embeddings.
 
@@ -163,7 +177,7 @@ async def upload(
         session_id,
         file.filename,
     )
- 
+
     if not session_id or not isinstance(session_id, str):
         raise HTTPException(status_code=400, detail="Invalid session_id")
 
@@ -204,7 +218,8 @@ async def upload(
         )
 
         return {
-            "message": "File uploaded and processed successfully"
+            "filename": safe_filename,
+            "message": "File uploaded and processed successfully",
         }
 
     except ValueError as ve:
@@ -229,8 +244,9 @@ async def upload(
     finally:
         file.file.close()
 
+
 @app.post("/delete_chat")
-async def delete_chat(session_id: str = Form(...)) -> dict:
+async def delete_chat(req: DeleteRequest) -> dict:
     """
     Delete chat history, associated document, and vector DB.
 
@@ -244,22 +260,22 @@ async def delete_chat(session_id: str = Form(...)) -> dict:
         HTTPException: If deletion fails
     """
 
-    logger.debug("[delete_chat] Request received | session=%s", session_id)
+    logger.debug("[delete_chat] Request received | session=%s", req.session_id)
 
-    if not session_id or not isinstance(session_id, str):
+    if not req.session_id or not isinstance(req.session_id, str):
         raise HTTPException(
             status_code=400,
             detail="Invalid session_id",
         )
 
     try:
-        await run_in_threadpool(clear_chat, session_id)
-        await run_in_threadpool(delete_document, session_id)
-        await run_in_threadpool(delete_db, session_id)
+        await run_in_threadpool(clear_chat, req.session_id)
+        await run_in_threadpool(delete_document, req.session_id)
+        await run_in_threadpool(delete_db, req.session_id)
 
         logger.info(
             "[delete_chat] Deletion successful | session=%s",
-            session_id,
+            req.session_id,
         )
 
         return {"message": "Chat deleted successfully"}
@@ -267,7 +283,7 @@ async def delete_chat(session_id: str = Form(...)) -> dict:
     except ValueError as ve:
         logger.warning(
             "[delete_chat] Validation error | session=%s | error=%s",
-            session_id,
+            req.session_id,
             str(ve),
         )
         raise HTTPException(status_code=400, detail=str(ve)) from ve
@@ -275,13 +291,14 @@ async def delete_chat(session_id: str = Form(...)) -> dict:
     except Exception as e:
         logger.exception(
             "[delete_chat] Failed to delete resources | session=%s",
-            session_id,
+            req.session_id,
         )
 
         raise HTTPException(
             status_code=500,
             detail="Internal server error during deletion",
         ) from e
+
 
 @app.get("/chat_history")
 async def chat_history(session_id: str) -> dict:
@@ -318,9 +335,7 @@ async def chat_history(session_id: str) -> dict:
             len(messages),
         )
 
-        return {
-            "messages": messages
-        }
+        return {"messages": messages}
 
     except ValueError as ve:
         logger.warning(
@@ -340,7 +355,7 @@ async def chat_history(session_id: str) -> dict:
             status_code=500,
             detail="Internal server error while fetching chat history",
         ) from e
-    
+
 
 @app.get("/document")
 async def get_document(session_id: str) -> dict:

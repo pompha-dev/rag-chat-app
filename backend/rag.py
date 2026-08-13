@@ -8,8 +8,6 @@ import shutil
 import logging
 from threading import Lock
 
-
-
 # LLM
 llm = ChatOpenAI()
 
@@ -21,7 +19,9 @@ db_lock = Lock()
 
 class DatabaseDeletionError(Exception):
     """Custom exception for database deletion failures."""
+
     pass
+
 
 def load_db(session_id: str):
     """
@@ -39,7 +39,6 @@ def load_db(session_id: str):
     """
     logger.debug("[load_db] Loading DB for session: %s", session_id)
 
-  
     if not session_id or not isinstance(session_id, str):
         raise ValueError("Invalid session_id provided")
 
@@ -47,47 +46,30 @@ def load_db(session_id: str):
         session_path = os.path.join(FAISS_DIR, session_id)
 
         if not os.path.exists(session_path):
-            logger.debug(
-                "[load_db] No DB found on disk for session: %s",
-                session_id
-            )
+            logger.debug("[load_db] No DB found on disk for session: %s", session_id)
             return None
 
         logger.debug(
-            "[load_db] Found DB path: %s for session: %s",
-            session_path,
-            session_id
+            "[load_db] Found DB path: %s for session: %s", session_path, session_id
         )
 
-        #Initialize embeddings
         embeddings = OpenAIEmbeddings()
 
-        #Load FAISS index
         db = FAISS.load_local(
-            session_path,
-            embeddings,
-            allow_dangerous_deserialization=True
+            session_path, embeddings, allow_dangerous_deserialization=True
         )
 
-        logger.info(
-            "[load_db] Successfully loaded DB for session: %s",
-            session_id
-        )
+        logger.info("[load_db] Successfully loaded DB for session: %s", session_id)
 
         return db
 
     except ValueError:
-        raise  
+        raise
 
     except Exception as e:
-        logger.exception(
-            "[load_db] Failed to load DB for session: %s",
-            session_id
-        )
+        logger.exception("[load_db] Failed to load DB for session: %s", session_id)
 
-        raise RuntimeError(
-            f"Failed to load DB for session {session_id}"
-        ) from e
+        raise RuntimeError(f"Failed to load DB for session {session_id}") from e
 
 
 def get_db(session_id: str):
@@ -113,47 +95,36 @@ def get_db(session_id: str):
     try:
         with db_lock:
             if session_id in db_store:
-                logger.debug(
-                    "[get_db] Cache HIT for session: %s", session_id
-                )
+                logger.debug("[get_db] Cache HIT for session: %s", session_id)
                 return db_store[session_id]
 
         logger.debug(
-            "[get_db] Cache MISS for session: %s. Loading from disk...",
-            session_id
+            "[get_db] Cache MISS for session: %s. Loading from disk...", session_id
         )
 
         db = load_db(session_id)
 
         if db is None:
-            logger.info(
-                "[get_db] No DB found on disk for session: %s", session_id
-            )
+            logger.info("[get_db] No DB found on disk for session: %s", session_id)
             return None
 
         with db_lock:
             db_store[session_id] = db
 
         logger.info(
-            "[get_db] Loaded DB from disk and cached for session: %s",
-            session_id
+            "[get_db] Loaded DB from disk and cached for session: %s", session_id
         )
 
         return db
 
     except ValueError:
-        raise  
+        raise
 
     except Exception as e:
-        logger.exception(
-            "[get_db] Failed to retrieve DB for session: %s",
-            session_id
-        )
+        logger.exception("[get_db] Failed to retrieve DB for session: %s", session_id)
 
-        raise RuntimeError(
-            f"Failed to retrieve DB for session {session_id}"
-        ) from e
-    
+        raise RuntimeError(f"Failed to retrieve DB for session {session_id}") from e
+
 
 def save_db(db, session_id: str) -> None:
     """
@@ -169,7 +140,6 @@ def save_db(db, session_id: str) -> None:
     """
     logger.debug("[save_db] Saving DB for session: %s", session_id)
 
-    
     if db is None:
         raise ValueError("DB instance cannot be None")
 
@@ -177,31 +147,22 @@ def save_db(db, session_id: str) -> None:
         raise ValueError("Invalid session_id provided")
 
     try:
-        
+
         os.makedirs(FAISS_DIR, exist_ok=True)
 
         session_path = os.path.join(FAISS_DIR, session_id)
 
-        logger.debug(
-            "[save_db] Saving FAISS index to path: %s", session_path
-        )
+        logger.debug("[save_db] Saving FAISS index to path: %s", session_path)
 
-     
         db.save_local(session_path)
 
-        logger.info(
-            "[save_db] Successfully saved DB for session: %s", session_id
-        )
+        logger.info("[save_db] Successfully saved DB for session: %s", session_id)
 
     except Exception as e:
-        logger.exception(
-            "[save_db] Failed to save DB for session: %s", session_id
-        )
+        logger.exception("[save_db] Failed to save DB for session: %s", session_id)
 
-        raise RuntimeError(
-            f"Failed to save DB for session {session_id}"
-        ) from e
-    
+        raise RuntimeError(f"Failed to save DB for session {session_id}") from e
+
 
 def create_db_from_file(file_path: str, session_id: str) -> None:
     """
@@ -227,7 +188,7 @@ def create_db_from_file(file_path: str, session_id: str) -> None:
         raise ValueError(f"File does not exist: {file_path}")
 
     try:
-       
+
         if file_path.endswith(".txt"):
             loader = TextLoader(file_path, encoding="utf-8")
         elif file_path.endswith(".pdf"):
@@ -247,11 +208,7 @@ def create_db_from_file(file_path: str, session_id: str) -> None:
             )
             raise ValueError("Uploaded file contains no readable content")
 
-        #Split text
-        text_splitter = CharacterTextSplitter(
-            chunk_size=500,
-            chunk_overlap=50
-        )
+        text_splitter = CharacterTextSplitter(chunk_size=500, chunk_overlap=50)
         docs = text_splitter.split_documents(documents)
 
         logger.debug(
@@ -260,17 +217,19 @@ def create_db_from_file(file_path: str, session_id: str) -> None:
             session_id,
         )
 
-        #Create embeddings
+        if not docs:
+            raise ValueError(
+                "No readable text could be extracted from the uploaded PDF. "
+                "The PDF may be scanned or image-based."
+            )
+
         embeddings = OpenAIEmbeddings()
 
-        #Create FAISS DB
         db = FAISS.from_documents(docs, embeddings)
 
-        #Store safely (thread-safe if needed)
         with db_lock:
             db_store[session_id] = db
 
-        #Persist to disk
         save_db(db, session_id)
 
         logger.info(
@@ -280,18 +239,13 @@ def create_db_from_file(file_path: str, session_id: str) -> None:
         )
 
     except ValueError:
-        # Let validation errors bubble up cleanly
         raise
 
     except Exception as e:
-        logger.exception(
-            "[create_db_from_file] Failed for session: %s", session_id
-        )
+        logger.exception("[create_db_from_file] Failed for session: %s", session_id)
 
-        raise RuntimeError(
-            f"Failed to create DB for session {session_id}"
-        ) from e
-    
+        raise RuntimeError(f"Failed to create DB for session {session_id}") from e
+
 
 def ask_rag(question: str, session_id: str) -> dict:
     """
@@ -309,13 +263,13 @@ def ask_rag(question: str, session_id: str) -> dict:
         RuntimeError: If LLM or retrieval fails.
     """
     logger.debug("[ask_rag] Received question for session: %s", session_id)
-  
+
     if not isinstance(question, str):
         raise ValueError("Question must be a string")
-    
+
     if not session_id or not isinstance(session_id, str):
         raise ValueError("Invalid session_id provided")
-    
+
     if not question.strip():
         logger.debug("[ask_rag] Empty question received for session: %s", session_id)
         save_message(session_id, "user", question)
@@ -323,7 +277,6 @@ def ask_rag(question: str, session_id: str) -> dict:
         return {"answer": "Please enter a question."}
 
     try:
-        # Get DB
         db = get_db(session_id)
 
         if db is None:
@@ -334,31 +287,23 @@ def ask_rag(question: str, session_id: str) -> dict:
 
             return {"answer": "Please upload a document first."}
 
-        # Get chat history
         chat_history = get_chat_history(session_id)
 
-        #Retrieve docs
         docs_and_scores = db.similarity_search_with_score(question, k=2)
 
         threshold = 0.6
-        relevant_docs = [
-            doc for doc, score in docs_and_scores if score < threshold
-        ]
+        relevant_docs = [doc for doc, score in docs_and_scores if score < threshold]
 
         if not relevant_docs:
-            logger.info(
-                "[ask_rag] No relevant docs found for session: %s", session_id
-            )
+            logger.info("[ask_rag] No relevant docs found for session: %s", session_id)
 
             save_message(session_id, "user", question)
             save_message(session_id, "assistant", "I don't know.")
 
             return {"answer": "I don't know."}
 
-        #Build context
         context = "\n".join([doc.page_content for doc in relevant_docs])
 
-        #Construct messages
         messages = [
             {
                 "role": "system",
@@ -387,13 +332,11 @@ def ask_rag(question: str, session_id: str) -> dict:
             }
         )
 
-        #Call LLM
         logger.debug("[ask_rag] Invoking LLM for session: %s", session_id)
         response = llm.invoke(messages)
 
         answer = response.content
 
-        #Persist chat
         save_message(session_id, "user", question)
         save_message(session_id, "assistant", answer)
 
@@ -408,12 +351,9 @@ def ask_rag(question: str, session_id: str) -> dict:
     except Exception as e:
         logger.exception("[ask_rag] Failed for session: %s", session_id)
 
-        raise RuntimeError(
-            f"RAG query failed for session {session_id}"
-        ) from e
-    
+        raise RuntimeError(f"RAG query failed for session {session_id}") from e
 
-    
+
 def delete_faiss_index(session_id: str) -> None:
     """
     Deletes FAISS index directory for a given session.
@@ -428,7 +368,10 @@ def delete_faiss_index(session_id: str) -> None:
         ValueError: If session_id is invalid.
         DatabaseDeletionError: If deletion fails unexpectedly.
     """
-    logger.debug("[delete_faiss_index] Attempting to delete FAISS index for session: %s", session_id)
+    logger.debug(
+        "[delete_faiss_index] Attempting to delete FAISS index for session: %s",
+        session_id,
+    )
 
     if not session_id or not isinstance(session_id, str):
         raise ValueError("Invalid session_id provided")
@@ -439,21 +382,24 @@ def delete_faiss_index(session_id: str) -> None:
     try:
         if not os.path.exists(session_path):
             logger.debug(
-                "[delete_faiss_index] FAISS index not found (already deleted?): %s", session_id
+                "[delete_faiss_index] FAISS index not found (already deleted?): %s",
+                session_id,
             )
             return
 
         shutil.rmtree(session_path)
-        logger.debug("[delete_faiss_index] Deleted FAISS index for session: %s", session_id)
+        logger.debug(
+            "[delete_faiss_index] Deleted FAISS index for session: %s", session_id
+        )
 
     except Exception as e:
         logger.exception(
-            "[delete_faiss_index] Failed to delete FAISS index for session: %s", session_id
-            )
+            "[delete_faiss_index] Failed to delete FAISS index for session: %s",
+            session_id,
+        )
         raise DatabaseDeletionError(
             f"Failed to delete FAISS index for session {session_id}"
-            ) from e
-    
+        ) from e
 
 
 def delete_db(session_id):
@@ -473,21 +419,30 @@ def delete_db(session_id):
     logger.debug("Attempting to delete session: %s", session_id)
     try:
         with db_lock:
-           removed = db_store.pop(session_id, None)
+            removed = db_store.pop(session_id, None)
 
         if removed is not None:
             logger.info("[delete_db] Deleted session from db_store: %s", session_id)
         else:
-            logger.debug("[delete_db] Session not found in db_store (already deleted?): %s", session_id)
+            logger.debug(
+                "[delete_db] Session not found in db_store (already deleted?): %s",
+                session_id,
+            )
 
     except Exception as e:
-        logger.exception("[delete_db] Failed to delete session from db_store: %s", session_id)
-        raise DatabaseDeletionError(f"Failed to delete session {session_id} from db_store") from e
-    
+        logger.exception(
+            "[delete_db] Failed to delete session from db_store: %s", session_id
+        )
+        raise DatabaseDeletionError(
+            f"Failed to delete session {session_id} from db_store"
+        ) from e
+
     try:
         delete_faiss_index(session_id)
         logger.info("[delete_db] Deleted FAISS index for session: %s", session_id)
 
     except Exception as e:
         logger.exception("[delete_db] Failed to delete FAISS index: %s", session_id)
-        raise DatabaseDeletionError(f"Failed to delete FAISS index for session {session_id}") from e
+        raise DatabaseDeletionError(
+            f"Failed to delete FAISS index for session {session_id}"
+        ) from e

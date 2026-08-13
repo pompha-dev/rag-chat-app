@@ -7,6 +7,7 @@ logger = logging.getLogger(__name__)
 DB_PATH = os.getenv("DB_PATH", "chat.db")
 DB_TIMEOUT = int(os.getenv("DB_TIMEOUT", 5))
 
+
 def get_connection() -> sqlite3.Connection:
     """
     Creates and returns a new database connection.
@@ -18,11 +19,7 @@ def get_connection() -> sqlite3.Connection:
         RuntimeError: If connection fails.
     """
     try:
-        conn = sqlite3.connect(
-            DB_PATH,
-            timeout=DB_TIMEOUT,
-            check_same_thread=False  
-        )
+        conn = sqlite3.connect(DB_PATH, timeout=DB_TIMEOUT, check_same_thread=False)
 
         conn.row_factory = sqlite3.Row
 
@@ -36,6 +33,7 @@ def get_connection() -> sqlite3.Connection:
         logger.exception("[get_connection] Failed to connect to database")
 
         raise RuntimeError("Database connection failed") from e
+
 
 def init_db() -> None:
     """
@@ -54,11 +52,9 @@ def init_db() -> None:
         conn = get_connection()
         cursor = conn.cursor()
 
-        
         cursor.execute("BEGIN")
 
-        cursor.execute(
-            """
+        cursor.execute("""
             CREATE TABLE IF NOT EXISTS chat_history (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 session_id TEXT NOT NULL,
@@ -66,17 +62,14 @@ def init_db() -> None:
                 content TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
-            """
-        )
+            """)
 
-        cursor.execute(
-            """
+        cursor.execute("""
             CREATE TABLE IF NOT EXISTS documents (
-                session_id TEXT NOT NULL,
+                session_id TEXT NOT NULL PRIMARY KEY,
                 filename TEXT NOT NULL
             )
-            """
-        )
+            """)
 
         cursor.execute(
             "CREATE INDEX IF NOT EXISTS idx_chat_session ON chat_history(session_id)"
@@ -101,4 +94,3 @@ def init_db() -> None:
     finally:
         if conn:
             conn.close()
-

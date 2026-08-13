@@ -5,6 +5,7 @@ import threading
 
 logger = logging.getLogger(__name__)
 
+
 def save_document(session_id: str, filename: str) -> None:
     """
     Saves a document record for a given session.
@@ -39,6 +40,9 @@ def save_document(session_id: str, filename: str) -> None:
             """
             INSERT INTO documents (session_id, filename)
             VALUES (?, ?)
+            ON CONFLICT(session_id)
+            DO UPDATE SET
+            filename = excluded.filename;
             """,
             (session_id, filename),
         )
@@ -53,7 +57,7 @@ def save_document(session_id: str, filename: str) -> None:
 
     except Exception as e:
         if conn:
-            conn.rollback()  
+            conn.rollback()
 
         logger.exception(
             "[save_document] Failed to save document | session: %s | filename: %s",
@@ -61,14 +65,11 @@ def save_document(session_id: str, filename: str) -> None:
             filename,
         )
 
-        raise RuntimeError(
-            f"Failed to save document for session {session_id}"
-        ) from e
+        raise RuntimeError(f"Failed to save document for session {session_id}") from e
 
     finally:
         if conn:
-            conn.close()  
-
+            conn.close()
 
 
 def load_document(session_id: str) -> Optional[str]:
@@ -133,16 +134,13 @@ def load_document(session_id: str) -> Optional[str]:
             "[load_document] Failed to load document | session: %s",
             session_id,
         )
-        raise RuntimeError(
-            f"Failed to load document for session {session_id}"
-        ) from e
+        raise RuntimeError(f"Failed to load document for session {session_id}") from e
 
     finally:
         if conn:
             conn.close()
 
 
-    
 def delete_document(session_id: str) -> None:
     """
     Deletes all documents associated with a given session.
@@ -176,7 +174,7 @@ def delete_document(session_id: str) -> None:
             (session_id,),
         )
 
-        deleted_count = cursor.rowcount  
+        deleted_count = cursor.rowcount
 
         conn.commit()
 

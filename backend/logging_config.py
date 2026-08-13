@@ -2,6 +2,7 @@ import logging
 import logging.config
 import os
 
+
 def setup_logging():
     LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
     LOG_FILE = os.getenv("LOG_FILE", "app.log")
@@ -9,7 +10,6 @@ def setup_logging():
     logging_config = {
         "version": 1,
         "disable_existing_loggers": False,
-
         "formatters": {
             "standard": {
                 "format": "%(asctime)s | %(levelname)s | %(name)s | %(message)s",
@@ -23,7 +23,6 @@ def setup_logging():
                 ),
             },
         },
-
         "handlers": {
             # Console (stdout) — important for Docker/Kubernetes
             "console": {
@@ -32,7 +31,6 @@ def setup_logging():
                 "formatter": "standard",
                 "stream": "ext://sys.stdout",
             },
-
             # Rotating file handler (prevents huge log files)
             "file": {
                 "class": "logging.handlers.RotatingFileHandler",
@@ -44,7 +42,6 @@ def setup_logging():
                 "encoding": "utf-8",
             },
         },
-
         "root": {
             "level": LOG_LEVEL,
             "handlers": ["console", "file"],
