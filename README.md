@@ -1,19 +1,15 @@
-A simple Retrieval-Augmented Generation (RAG) chatbot that allows users to upload documents and ask questions based on their content. This project demonstrates backend integration with FastAPI, FAISS, and OpenAI, along with a basic frontend using vanilla JavaScript. 
+# RAG Document Chatbot
 
-Features
- - Ask questions based on uploaded documents
- - Upload .pdf and .txt files
- - Semantic search using FAISS
- - Session-based chat history
- - Delete chat, document, and vector database
- -  Simple frontend (HTML + JavaScript)
+A full-stack RAG chatbot that lets users upload documents and ask questions grounded in their content.
 
-Tech Stack
+### Features
+- Document upload and semantic search
+- Session-based chat history
+- FAISS vector search with OpenAI embeddings
+- React frontend with FastAPI REST API
+- SQLite persistence
+- Chat, document, and vector database management
 
-Backend - FastAPI
-SQLite
-FAISS (vector database)
-OpenAI Embeddings
-
-Frontend - HTML
-Vanilla JavaScript (basic DOM manipulation)
+### Tech Stack
+**Frontend:** React, JavaScript, CSS, Vite  
+**Backend:** Python, FastAPI, SQLite, FAISS, LangChain, OpenAI
