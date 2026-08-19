@@ -1,0 +1,22 @@
+name: docquery
+
+services:
+  
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+    volumes:
+      - uploads:/app/uploads
+      - faiss_indexes:/app/faiss_indexes
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:5173"
+
+volumes:
+  uploads:
+  faiss_indexes:
