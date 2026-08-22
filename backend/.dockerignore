@@ -8,3 +8,4 @@ __pycache__/
 *.sqlite
 uploads/
 faiss_indexes/
+data/
